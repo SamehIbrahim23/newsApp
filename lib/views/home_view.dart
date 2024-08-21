@@ -1,23 +1,9 @@
-import 'package:api_session/constants.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:news_app/cubits/get_news_cubit/get_news_cubit.dart';
 
-import '../models/article.dart';
-import '../services/news_service.dart';
-
-class HomePage extends StatefulWidget {
+class HomePage extends StatelessWidget {
   const HomePage({super.key});
-
-  @override
-  State<HomePage> createState() => _HomePageState();
-}
-
-class _HomePageState extends State<HomePage> {
-  Future<List<Article>> getData() async {
-    List<Article> articles = await NewsServices().getNews(
-        path: ApiConstant.baseUrl + ApiConstant.newsEndpoint,
-        query: {"apiKey": ApiConstant.apiKey, "country": "us"});
-    return articles;
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -41,61 +27,67 @@ class _HomePageState extends State<HomePage> {
                 ),
               ],
             )),
-        body: FutureBuilder(
-          future: getData(),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
+        body: BlocBuilder<GetNewsCubit, GetNewsState>(
+          builder: (context, state) {
+            if (state is GetNewsLoading) {
               return const Center(
                 child: CircularProgressIndicator(
-                  color: Colors.orange,
+                  color: Colors.yellow,
                 ),
               );
-            }
-            if (snapshot.hasError) {
-              return const Center(child: Text("Error"));
-            }
-
-            return ListView.builder(
-                physics: const BouncingScrollPhysics(),
-                itemCount: snapshot.data!.length,
-                itemBuilder: (context, index) {
-                  return Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        ClipRRect(
-                            borderRadius: BorderRadius.circular(6),
-                            child: Image.network(
-                                snapshot.data![index].urlToImage,
+            } else if (state is GetNewsSuccess) {
+              return ListView.builder(
+                  physics: const BouncingScrollPhysics(),
+                  itemCount: state.articleList.length,
+                  itemBuilder: (context, index) {
+                    return Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          ClipRRect(
+                              borderRadius: BorderRadius.circular(6),
+                              child: Image.network(
+                                state.articleList[index].urlToImage,
                                 height: 200,
                                 width: double.infinity,
-                                fit: BoxFit.cover)),
-                        const SizedBox(
-                          height: 9,
-                        ),
-                        Text(
-                          snapshot.data![index].title,
-                          maxLines: 2,
-                          style: const TextStyle(
-                            color: Colors.black87,
-                            fontSize: 20,
-                            fontWeight: FontWeight.w500,
+                                fit: BoxFit.cover,
+                              )),
+                          const SizedBox(
+                            height: 9,
                           ),
-                        ),
-                        const SizedBox(
-                          height: 5,
-                        ),
-                        Text(
-                          snapshot.data![index].content,
-                          maxLines: 2,
-                          style:
-                              const TextStyle(color: Colors.grey, fontSize: 14),
-                        )
-                      ],
-                    ),
-                  );
-                });
+                          Text(
+                            state.articleList[index].title,
+                            maxLines: 2,
+                            style: const TextStyle(
+                              color: Colors.black87,
+                              fontSize: 20,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(
+                            height: 5,
+                          ),
+                          Text(
+                            state.articleList[index].content,
+                            maxLines: 2,
+                            style: const TextStyle(
+                                color: Colors.grey, fontSize: 14),
+                          )
+                        ],
+                      ),
+                    );
+                  });
+            } else if (state is GetNewsFailure) {
+              return Center(
+                child: Text(
+                  'Failed to load news: ${state.error}',
+                  style: const TextStyle(color: Colors.red),
+                ),
+              );
+            } else {
+              return const Center(child: Text("No data available"));
+            }
           },
         ));
   }
